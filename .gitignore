@@ -13,12 +13,14 @@ build/
 # Database (your personal data)
 data/tutor.db
 data/indexed_files.json
+!data/.gitkeep
 
 # Vector database (large, regenerated automatically)
 chroma_db/
 
 # Logs
-logs/
+logs/*
+!logs/.gitkeep
 
 # OS
 .DS_Store

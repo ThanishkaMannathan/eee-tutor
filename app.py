@@ -6,6 +6,9 @@ import os
 import sys
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.makedirs(os.path.join(ROOT_DIR, "logs"), exist_ok=True)
+os.makedirs(os.path.join(ROOT_DIR, "data"), exist_ok=True)
+
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 

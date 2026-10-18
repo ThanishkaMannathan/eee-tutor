@@ -35,14 +35,22 @@ import knowledge
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-# ── Logging ──────────────────────────────────────
+# ── Directory & Logging Setup ─────────────────────
+LOGS_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+log_handlers = [logging.StreamHandler(sys.stdout)]
+try:
+    log_handlers.append(logging.FileHandler(os.path.join(LOGS_DIR, 'webapp.log'), encoding='utf-8'))
+except Exception:
+    pass
+
 logging.basicConfig(
     level   = logging.INFO,
     format  = "%(asctime)s | %(levelname)s | %(message)s",
-    handlers= [
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), '..', 'logs', 'webapp.log'), encoding='utf-8'),
-        logging.StreamHandler()
-    ]
+    handlers= log_handlers
 )
 logger = logging.getLogger(__name__)
 
