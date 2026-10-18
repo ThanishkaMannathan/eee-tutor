@@ -26,14 +26,32 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-import chromadb                         # Vector database for RAG
-from chromadb.config import Settings as ChromaSettings
-import fitz                             # PyMuPDF — reads PDF files
-import feedparser                       # Reads RSS news feeds
-from sentence_transformers import SentenceTransformer  # Free local embeddings
+try:
+    import chromadb                         # Vector database for RAG
+    from chromadb.config import Settings as ChromaSettings
+except ImportError:
+    chromadb = None
+    ChromaSettings = None
+
+try:
+    import fitz                             # PyMuPDF — reads PDF files
+except ImportError:
+    fitz = None
+
+try:
+    import pypdf                            # Pure-Python PDF reader (cloud friendly)
+except ImportError:
+    pypdf = None
+
+import feedparser                           # Reads RSS news feeds
+
+try:
+    from sentence_transformers import SentenceTransformer  # Local embeddings
+except ImportError:
+    SentenceTransformer = None
 
 from dotenv import load_dotenv
-import anthropic                        # Used to summarize RSS articles
+import anthropic                            # Used to summarize RSS articles
 
 load_dotenv()
 
@@ -71,21 +89,32 @@ EEE_RSS_FEEDS = [
 # This will download the model on first run (~90 MB). Subsequent runs are instant.
 _embedding_model = None
 
-def _get_embedding_model() -> SentenceTransformer:
+def _get_embedding_model():
     """Lazy-load the embedding model (loads only once per session)."""
     global _embedding_model
+    if SentenceTransformer is None:
+        return None
     if _embedding_model is None:
-        logger.info("Loading sentence-transformer embedding model (first run may be slow)...")
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("Embedding model loaded.")
+        try:
+            logger.info("Loading sentence-transformer embedding model...")
+            _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+            logger.info("Embedding model loaded.")
+        except Exception as e:
+            logger.warning("Could not load embedding model: %s", e)
+            return None
     return _embedding_model
 
 
 def _embed_texts(texts: list) -> list:
     """Convert a list of text strings into embedding vectors."""
     model = _get_embedding_model()
-    embeddings = model.encode(texts, show_progress_bar=False)
-    return embeddings.tolist()
+    if model is None:
+        return []
+    try:
+        embeddings = model.encode(texts, show_progress_bar=False)
+        return embeddings.tolist()
+    except Exception:
+        return []
 
 
 # ─────────────────────────────────────────────
@@ -100,13 +129,19 @@ _articles_collection = None # For RSS article summaries
 def _get_chroma_client():
     """Lazy-load and return the ChromaDB client (singleton)."""
     global _chroma_client
+    if chromadb is None:
+        return None
     if _chroma_client is None:
-        os.makedirs(CHROMA_DIR, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(
-            path     = CHROMA_DIR,
-            settings = ChromaSettings(anonymized_telemetry=False)
-        )
-        logger.info("ChromaDB client initialized at: %s", CHROMA_DIR)
+        try:
+            os.makedirs(CHROMA_DIR, exist_ok=True)
+            _chroma_client = chromadb.PersistentClient(
+                path     = CHROMA_DIR,
+                settings = ChromaSettings(anonymized_telemetry=False)
+            )
+            logger.info("ChromaDB client initialized at: %s", CHROMA_DIR)
+        except Exception as e:
+            logger.warning("ChromaDB init error: %s", e)
+            return None
     return _chroma_client
 
 
@@ -164,14 +199,22 @@ def _file_hash(filepath: str) -> str:
 
 
 def _extract_text_from_pdf(filepath: str) -> str:
-    """Extract all text from a PDF file using PyMuPDF."""
+    """Extract all text from a PDF file using pypdf or PyMuPDF."""
     try:
-        doc  = fitz.open(filepath)
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        doc.close()
-        return text.strip()
+        if pypdf is not None:
+            reader = pypdf.PdfReader(filepath)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return text.strip()
+        elif fitz is not None:
+            doc  = fitz.open(filepath)
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+            return text.strip()
+        return ""
     except Exception as e:
         logger.error("Failed to read PDF '%s': %s", filepath, str(e))
         return ""
@@ -203,6 +246,10 @@ def index_knowledge_folder():
     Index any new content into ChromaDB.
     Call this at startup and whenever files are added.
     """
+    if _get_chroma_client() is None or _get_embedding_model() is None:
+        logger.info("Knowledge base vector store not active. Skipping indexing.")
+        return 0
+
     os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
     indexed_log = _load_indexed_log()
     collection  = _get_notes_collection()
