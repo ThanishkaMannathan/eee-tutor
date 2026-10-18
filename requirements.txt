@@ -1,0 +1,44 @@
+# ============================================================
+#  requirements.txt — All Python packages needed to run the bot
+#  Install with:  pip install -r requirements.txt
+# ============================================================
+
+# Telegram bot framework (v20+ uses async/await style)
+python-telegram-bot==20.7
+
+# Anthropic Claude API client
+anthropic==0.25.0
+
+# SQLite is built into Python — no install needed!
+
+# Vector database for the knowledge base (RAG)
+chromadb==0.4.24
+
+# Local embedding model (free, runs on your CPU)
+sentence-transformers==2.7.0
+
+# PDF text extraction (to read your notes and textbooks)
+PyMuPDF==1.24.1
+
+# RSS feed reader (for fetching weekly EEE articles)
+feedparser==6.0.11
+
+# Job scheduler (for daily lessons, reminders, weekly reports)
+APScheduler==3.10.4
+
+# Load environment variables from .env file
+python-dotenv==1.0.1
+
+# HTTP requests (used by feedparser and for general API calls)
+requests==2.31.0
+
+# Date/time utilities for scheduling
+pytz==2024.1
+
+# Markdown to plain text (clean up AI responses for Telegram)
+markdownify==0.12.1
+
+# Web App & Cloud Server
+flask==3.0.2
+flask-cors==4.0.0
+gunicorn==21.2.0
